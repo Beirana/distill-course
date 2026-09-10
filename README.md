@@ -8,8 +8,10 @@
 
 | 路径 | 用途 |
 |---|---|
+| `docs/跟课手册.md` | **跟视频逐步操作的入口**：每步目的+命令+预期结果，含故障处理 |
 | `docs/学生实验指南.md` | 实验目标、阶段解释、结果理解与报告要求 |
 | `docs/AI辅助实验说明.md` | 学生使用AI协助实验的可选说明 |
+| `chat.py` | 双服务对比对话小工具（可选环节用，`python chat.py 端口 服务名`） |
 | `configs/course.json` | 唯一默认实验配置，学生为0.5B-Instruct |
 | `configs/requirements-*.txt` | 可调整的预编译候选依赖 |
 | `scripts/setup_env.py` | 当前镜像环境内解析/安装，默认plan，`--apply`执行 |
@@ -57,6 +59,7 @@ ln -sfn /root/autodl-tmp/distill-assets/cache  /root/distill-work/cache
 python scripts/course.py download-models
 python scripts/course.py prepare-data
 python scripts/run_stage.py generate --run smoke01 --mode smoke
+python scripts/run_stage.py eval --run smoke01 --model before --split dev
 python scripts/course.py make-config --run smoke01
 python scripts/course.py train --run smoke01
 python scripts/course.py export --run smoke01
