@@ -1,0 +1,12 @@
+{
+  "teacher_data": {
+    "file_name": "train.json",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  }
+}

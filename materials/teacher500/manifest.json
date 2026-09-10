@@ -1,0 +1,15 @@
+{
+  "teacher": "Qwen/Qwen2.5-7B-Instruct",
+  "source": "AI-MO/NuminaMath-CoT source=gsm8k, reference-linked and filtered",
+  "count": 500,
+  "origin": "existing teacher outputs, not generated on the new instance",
+  "files": {
+    "train.json": "4e082bb52cfd655cfa7c777a5f5e88164692836d9cb3751970bde667d486f5fe",
+    "dataset_info.json": "f85a425f36321b921256c980d77e477b7c125a06477f674e8be3fd4f3a8c0f94",
+    "generation_audit.jsonl": "a590e64220c45fc2c331b26af3c3aacd8b03642ac06cad4a5a4ba02932c65078"
+  },
+  "evaluation_files": {
+    "dev.jsonl": "b0228b5d58f4d498bb3eb9bcd9ff72c7f8d58b082c676249300c61eff50a84a9",
+    "test.jsonl": "8ed96470ae4d6ba0394a7f68068ceaf97c40be320a366126683f8e08c16ea0f2"
+  }
+}

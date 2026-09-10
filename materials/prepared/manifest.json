@@ -1,0 +1,21 @@
+{
+  "time": "2026-09-08T03:04:45.429431+00:00",
+  "source": {
+    "numina": [
+      "AI-MO/NuminaMath-CoT",
+      "9d8d210c9f6a36c8f3cd84045668c9b7800ef517"
+    ],
+    "gsm8k": [
+      "openai/gsm8k",
+      "740312add88f781978c0658806c59bc2815b9866"
+    ],
+    "hf_endpoint": "https://huggingface.co"
+  },
+  "files": {
+    "candidates.jsonl": "7965035017e2061f888885ea6c72fbeb20b1c5073217af6f711dda3fba485b29",
+    "dev.jsonl": "b0228b5d58f4d498bb3eb9bcd9ff72c7f8d58b082c676249300c61eff50a84a9",
+    "test.jsonl": "8ed96470ae4d6ba0394a7f68068ceaf97c40be320a366126683f8e08c16ea0f2",
+    "selection_report.json": "50e29cc7e879ab8218acb4513fa1ff8604cd94f03057755bc325f5258943326b"
+  },
+  "note": "Prepared data only; bind current Instruct config when importing. No historical student configuration is included."
+}

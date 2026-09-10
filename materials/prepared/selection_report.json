@@ -1,0 +1,190 @@
+{
+  "counts": {
+    "source_gsm8k": 7342,
+    "too_long": 28,
+    "duplicate": 1430,
+    "matched_before_near_filter": 5884,
+    "near_overlap_removed": 29,
+    "available": 5855
+  },
+  "dev": 100,
+  "candidates": 1000,
+  "test": 300,
+  "near_overlap_removed": [
+    {
+      "id": "numina-100644",
+      "test_indices": [
+        1147
+      ]
+    },
+    {
+      "id": "numina-127268",
+      "test_indices": [
+        918
+      ]
+    },
+    {
+      "id": "numina-143056",
+      "test_indices": [
+        303
+      ]
+    },
+    {
+      "id": "numina-155739",
+      "test_indices": [
+        551
+      ]
+    },
+    {
+      "id": "numina-167214",
+      "test_indices": [
+        148
+      ]
+    },
+    {
+      "id": "numina-171648",
+      "test_indices": [
+        148
+      ]
+    },
+    {
+      "id": "numina-195231",
+      "test_indices": [
+        1207
+      ]
+    },
+    {
+      "id": "numina-210905",
+      "test_indices": [
+        1152
+      ]
+    },
+    {
+      "id": "numina-265134",
+      "test_indices": [
+        602
+      ]
+    },
+    {
+      "id": "numina-271949",
+      "test_indices": [
+        721
+      ]
+    },
+    {
+      "id": "numina-308563",
+      "test_indices": [
+        1132
+      ]
+    },
+    {
+      "id": "numina-364796",
+      "test_indices": [
+        35
+      ]
+    },
+    {
+      "id": "numina-419709",
+      "test_indices": [
+        994
+      ]
+    },
+    {
+      "id": "numina-423253",
+      "test_indices": [
+        974
+      ]
+    },
+    {
+      "id": "numina-463920",
+      "test_indices": [
+        893
+      ]
+    },
+    {
+      "id": "numina-466715",
+      "test_indices": [
+        24
+      ]
+    },
+    {
+      "id": "numina-502100",
+      "test_indices": [
+        685
+      ]
+    },
+    {
+      "id": "numina-505690",
+      "test_indices": [
+        911
+      ]
+    },
+    {
+      "id": "numina-515109",
+      "test_indices": [
+        602
+      ]
+    },
+    {
+      "id": "numina-633383",
+      "test_indices": [
+        911
+      ]
+    },
+    {
+      "id": "numina-639739",
+      "test_indices": [
+        24
+      ]
+    },
+    {
+      "id": "numina-650479",
+      "test_indices": [
+        148
+      ]
+    },
+    {
+      "id": "numina-660192",
+      "test_indices": [
+        448
+      ]
+    },
+    {
+      "id": "numina-665201",
+      "test_indices": [
+        486
+      ]
+    },
+    {
+      "id": "numina-688053",
+      "test_indices": [
+        409
+      ]
+    },
+    {
+      "id": "numina-768348",
+      "test_indices": [
+        632
+      ]
+    },
+    {
+      "id": "numina-830778",
+      "test_indices": [
+        843
+      ]
+    },
+    {
+      "id": "numina-836164",
+      "test_indices": [
+        824
+      ]
+    },
+    {
+      "id": "numina-856446",
+      "test_indices": [
+        1076
+      ]
+    }
+  ],
+  "limitation": "exact normalized match + shared 10-token screen; no semantic or pretraining audit"
+}

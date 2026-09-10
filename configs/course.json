@@ -1,0 +1,18 @@
+{
+  "teacher": "Qwen/Qwen2.5-7B-Instruct",
+  "student": "Qwen/Qwen2.5-0.5B-Instruct",
+  "modelscope_revision": "master",
+  "numina_id": "AI-MO/NuminaMath-CoT",
+  "numina_revision": "9d8d210c9f6a36c8f3cd84045668c9b7800ef517",
+  "gsm8k_id": "openai/gsm8k",
+  "gsm8k_revision": "740312add88f781978c0658806c59bc2815b9866",
+  "seed": 42,
+  "candidate_count": 1000,
+  "dev_count": 100,
+  "test_count": 300,
+  "max_problem_chars": 600,
+  "cutoff_len": 2048,
+  "max_new_tokens": 768,
+  "gpu_memory_utilization": 0.8,
+  "system": "You are a helpful assistant. Solve the math problem step by step. End with a separate line: Answer: <number>. Use a signed integer or decimal without units on that line."
+}

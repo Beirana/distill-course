@@ -1,0 +1,8 @@
+# Incremental dependencies in the selected environment; existing Torch is preserved.
+transformers==4.57.6
+datasets==4.0.0
+accelerate==1.11.0
+peft==0.18.1
+trl==0.24.0
+gradio==5.50.0
+pyyaml==6.0.2
