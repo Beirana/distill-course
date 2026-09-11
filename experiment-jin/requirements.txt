@@ -1,0 +1,8 @@
+torch>=2.0.0
+transformers>=4.36.0
+datasets>=2.14.0
+accelerate>=0.25.0
+peft>=0.7.0
+huggingface-hub>=0.20.0
+matplotlib>=3.7.0
+bitsandbytes>=0.41.0

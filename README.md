@@ -22,6 +22,7 @@
 | `materials/prepared/` | 固定候选1000条、dev100、test300及数据来源/哈希 |
 | `materials/teacher500/` | 已验证500条教师示范、审计、哈希；用于可选复现/排障 |
 | `tests/`、`bundle-manifest.json` | CPU逻辑测试、文件完整性清单；清单不代表已压缩 |
+| [`experiment-jin/`](experiment-jin/README.md) | **同伴实现的另一条路线**：本地 Windows 单机 · 纯 transformers+PEFT 手写 · QLoRA 4bit（1.5B 教师 → 0.5B 学生），不依赖本包脚本与镜像 |
 
 仅包含轻量代码与文本数据；不含完整Numina原始数据、模型基座、adapter、merged、环境或安装缓存。原始数据ID与revision在configs/course.json，模型通过download-models命令从ModelScope下载；随附筛选数据使明确标注的备用路径可离线准备数据。
 
@@ -114,6 +115,11 @@ python scripts/course.py report --run instruct500-new-01
 ## 课后练习
 
 扩展题源（10000 道经过清洗去重的数学题，含来源记录与哈希清单）在配套仓库：https://github.com/Beirana/distill-exercises 。可用于课后加练：把题源整理为本包 generate 流程可用的候选格式，另建新 run 生成新的教师示范并训练比较。
+
+## 作者与贡献
+
+* **齐睿**（[@Beirana](https://github.com/Beirana)）— 项目主要作者与维护者
+* **金正一**（[@JIN-Zhy](https://github.com/JIN-Zhy)）— [`experiment-jin/`](experiment-jin/README.md) 内容作者与贡献者
 
 ## 来源与许可
 

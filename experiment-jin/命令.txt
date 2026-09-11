@@ -1,0 +1,32 @@
+# ========== 第1步：全局安装 modelscope（用于下载模型） ==========
+pip install modelscope
+
+# ========== 第2步：下载模型 ==========
+modelscope download --model 'Qwen/Qwen2.5-0.5B-Instruct' --local_dir './Qwen2.5-0.5B-Instruct'
+modelscope download --model Qwen/Qwen2.5-1.5B-Instruct --local_dir ./Qwen2.5-1.5B-Instruct
+
+# ========== 第3步：创建并激活虚拟环境 ==========
+python -m venv kd_env
+kd_env\Scripts\activate
+
+# ========== 第4步：安装依赖 ==========
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# ========== 第5步：验证GPU ==========
+python -c "import torch; print(torch.cuda.is_available())"
+# 如果是False，执行：
+# pip uninstall torch torchvision torchaudio -y
+# pip install torch==2.7.1+cu118 torchaudio==2.7.1+cu118 --index-url https://mirrors.nju.edu.cn/pytorch/whl/cu118 --extra-index-url https://mirrors.pku.edu.cn/pypi/simple
+
+# ========== 第6步：设置镜像（每个新终端都要执行） ==========
+$env:HF_ENDPOINT = "https://hf-mirror.com"
+
+# ========== 第7步：准备数据 ==========
+python prepare_data.py
+
+# ========== 第8步：训练模型 ==========
+python train_distill.py
+
+# ========== 第9步：评估（设置离线模式） ==========
+$env:HF_DATASETS_OFFLINE = "1"
+python evaluate.py

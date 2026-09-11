@@ -3,7 +3,7 @@
   "purpose": "student experiment directory integrity",
   "student": "Qwen/Qwen2.5-0.5B-Instruct",
   "files": {
-    "README.md": "915d5e2fa3dfdf65b6d59fb00611ef13eb4f34e03cded3eca97021bee06b9a06",
+    "README.md": "fcc53810de64a5de8d60700d001553a7b729e7745838eda28383ee0db72fb4a1",
     "chat.py": "0157f04d1ac8b9a3cf748eea334655dc1c82852f8fe83a567339cfe1da4dd8e8",
     "configs/course.json": "61ffa2e96c00a3088b8c999564c87c91222ae6331d9072429f52282e5ab86d1c",
     "configs/requirements-gen.txt": "573d57d272d01fdbfc5684a0860bfaa009912997b2063a424999e3050f364019",
