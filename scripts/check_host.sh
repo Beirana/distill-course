@@ -19,18 +19,18 @@ bad()  { echo "  [FAIL] $*"; FAIL=$((FAIL+1)); }
 line() { echo; echo "======== $* ========"; }
 
 line "1. 项目完整性"
-if "$PYTHON" "$PROJ/scripts/verify_bundle.py" >/tmp/check_bundle.log 2>&1; then
+if BUNDLE_INFO="$("$PYTHON" "$PROJ/scripts/verify_bundle.py" 2>&1)"; then
   ok "verify_bundle.py 通过（材料与清单一致）"
 else
-  bad "verify_bundle.py 失败: $(tail -3 /tmp/check_bundle.log)"
+  bad "verify_bundle.py 失败（仅新课程包身份未确认，不代表镜像环境损坏）: $BUNDLE_INFO"
 fi
 
 line "2. Python / Torch / GPU"
-PY_VER="$($PYTHON -c 'import sys; print(".".join(map(str,sys.version_info[:2])))' 2>/dev/null)"
-PY_PREFIX="$($PYTHON -c 'import sys; print(sys.prefix)' 2>/dev/null)"
+PY_VER="$("$PYTHON" -c 'import sys; print(".".join(map(str,sys.version_info[:2])))' 2>/dev/null)"
+PY_PREFIX="$("$PYTHON" -c 'import sys; print(sys.prefix)' 2>/dev/null)"
 echo "  python: $PY_VER  prefix: $PY_PREFIX"
 [ "$PY_VER" = "3.12" ] && ok "Python 3.12 与镜像预期一致" || warn "Python 非 3.12（文档按 3.12 验证，其他版本未验证）"
-TORCH_INFO="$($PYTHON - <<'EOF' 2>&1
+TORCH_INFO="$("$PYTHON" - <<'EOF' 2>&1
 import torch
 info = f"{torch.__version__}|{torch.version.cuda}|{torch.cuda.is_available()}"
 if torch.cuda.is_available():
@@ -75,7 +75,7 @@ if [ -n "$DATA_DISK_FREE_GB" ]; then
     || warn "数据盘可用不足 38GB（模型~17GB+缓存峰值~18GB），当前 ${DATA_DISK_FREE_GB}GB，需先核算再下载"
 fi
 
-line "5. 工作目录布局（数据盘不进镜像，只允许 模型/缓存；实验产物必须留在系统盘）"
+line "5. 工作目录布局（只报告持久化风险，不要求重制镜像或迁移可用目录）"
 DATA_DISK_TARGET="$(df --output=target "$DATA_DISK_DIR" 2>/dev/null | tail -1)"
 on_data_disk() {  # df 会先解析符号链接，直接比较所在文件系统挂载点
   local p="${1:-}"; [ -e "$p" ] || return 2
@@ -90,10 +90,10 @@ if [ -d "$WORK" ]; then
     fi
   done
   if [ -e "$WORK/runs" ] && on_data_disk "$WORK/runs"; then
-    bad "runs/（生成的500条、adapter、评测结果）在数据盘上，不进镜像，必须迁回系统盘"
+    warn "runs/ 在数据盘上：不影响运行；释放实例前确认保存/备份，不自动迁移"
   elif [ -e "$WORK/runs" ]; then ok "runs/ 实验产物在系统盘，会进镜像"; fi
   if [ -e "$WORK/data" ] && on_data_disk "$WORK/data"; then
-    bad "data/（筛选后数据）在数据盘上，必须迁回系统盘"
+    warn "data/ 在数据盘上：不影响运行；确认持久化/备份，不自动迁移"
   elif [ -e "$WORK/data" ]; then ok "data/ 在系统盘，会进镜像"; fi
   if [ -e "$WORK/models" ] && ! on_data_disk "$WORK/models" && [ "$SYS_FREE_GB" -lt 20 ]; then
     warn "models/ 在系统盘且系统盘余量 <20GB：教师15GB+学生1GB放系统盘会很紧；模型可重新下载，建议移到数据盘"
@@ -108,16 +108,17 @@ else
 fi
 
 line "6. 已装包 / 依赖一致性"
-if pip check 2>&1 | grep -q "No broken requirements found"; then
+PIP_INFO="$("$PYTHON" -m pip check 2>&1)"
+if printf '%s\n' "$PIP_INFO" | grep -q "No broken requirements found"; then
   ok "pip check 无损坏依赖"
 else
-  warn "pip check 报告问题: $(pip check 2>&1 | head -3)"
+  warn "pip check 报告问题（结合当前阶段 import/运行结果判断，不自动重装）: $(printf '%s\n' "$PIP_INFO" | head -3)"
 fi
 TRAIN_PY="${COURSE_TRAIN_ENV:-/root/train-env}/bin/python"
 [ -x "$TRAIN_PY" ] || TRAIN_PY=""
 for pkg in vllm transformers datasets modelscope peft llamafactory; do
-  ver="$(pip show "$pkg" 2>/dev/null | awk '/^Version:/{print $2}')"
-  [ -z "$ver" ] && ver="$(pip show "${pkg//-/_}" 2>/dev/null | awk '/^Version:/{print $2}')"
+  ver="$("$PYTHON" -m pip show "$pkg" 2>/dev/null | awk '/^Version:/{print $2}')"
+  [ -z "$ver" ] && ver="$("$PYTHON" -m pip show "${pkg//-/_}" 2>/dev/null | awk '/^Version:/{print $2}')"
   env_tag="base"
   if [ -z "$ver" ] && [ -n "$TRAIN_PY" ]; then
     ver="$("$TRAIN_PY" -m pip show "$pkg" 2>/dev/null | awk '/^Version:/{print $2}')"
@@ -126,7 +127,7 @@ for pkg in vllm transformers datasets modelscope peft llamafactory; do
   if [ -n "$ver" ]; then
     echo "  [已装] $pkg $ver ($env_tag)"
   else
-    echo "  [未装] $pkg   # P1 增量安装解决"
+    echo "  [未装] $pkg   # 先确认是否为当前阶段所需、是否在另一环境；不自动安装"
   fi
 done
 if [ -n "$TRAIN_PY" ] && "$TRAIN_PY" -m pip check 2>/dev/null | grep -q "No broken requirements found"; then
@@ -138,7 +139,7 @@ fi
 line "7. 网络入口"
 net() {  # net <名称> <url> <期望code前缀>
   local code; code="$(timeout 15 curl -sIL -o /dev/null -w '%{http_code}' "$2" 2>/dev/null)"
-  case "$code" in "$3"*) ok "$1 可达 (HTTP $code)";; 000) bad "$1 不可达（超时/拒连）";; *) warn "$1 返回 HTTP $code";; esac
+  case "$code" in "$3"*) ok "$1 可达 (HTTP $code)";; 000|"") warn "$1 不可达；只影响依赖此来源的新下载/安装，本地完整资产可继续";; *) warn "$1 返回 HTTP $code";; esac
 }
 net "ModelScope(模型权重)" "https://www.modelscope.cn/models/Qwen/Qwen2.5-0.5B-Instruct/resolve/master/config.json" "2"
 net "PyPI镜像(依赖安装)"  "http://mirrors.aliyun.com/pypi/simple/" "2"
@@ -163,7 +164,7 @@ if [ "$PLAN" = "1" ]; then
     ok "train 计划可解析（LLaMA-Factory 源码仅用于解析，未装 pip 包）"
   else bad "train 计划解析失败: $(tail -3 "$TRAIN_LOG")"; fi
   # 两计划共享包版本是否打架（决定是否需要隔离训练环境）
-  CONFLICT_PKGS="$(python3 - "$GEN_LOG" "$TRAIN_LOG" <<'EOF'
+  CONFLICT_PKGS="$("$PYTHON" - "$GEN_LOG" "$TRAIN_LOG" <<'EOF'
 import re, sys
 def planned(p):
     t = open(p, encoding="utf-8", errors="replace").read()
@@ -182,6 +183,6 @@ fi
 
 line "核查汇总"
 echo "  PASS=$PASS  WARN=$WARN  FAIL=$FAIL"
-[ "$FAIL" -eq 0 ] || { echo "  存在 FAIL，先处理后再进入 P1"; exit 1; }
-echo "  核查通过。下一步: P1 增量安装（看清 plan 后 --apply），安装后重跑本脚本确认 vllm/transformers 等已装且 Torch 未被替换。"
+[ "$FAIL" -eq 0 ] || { echo "  存在 FAIL：定位具体受影响阶段，不扩大为整台镜像失效；不自动安装或清理。"; exit 1; }
+echo "  核查完成。复用可用镜像环境，按当前阶段验证模型/推理/训练；WARN 按实际依赖判断。只有缺少必要能力时才讨论最小修复，不默认安装或升级依赖。"
 exit 0

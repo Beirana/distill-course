@@ -84,6 +84,24 @@ class SelectionTests(unittest.TestCase):
 
 
 class ArtifactTests(unittest.TestCase):
+    def make_external_model(self, root, role, revision):
+        folder = root / "models" / role
+        folder.mkdir(parents=True)
+        (folder / "config.json").write_text("{}", encoding="utf-8")
+        (folder / "model.safetensors").write_bytes((role + " weights").encode())
+        files = []
+        for path in sorted(folder.iterdir()):
+            files.append({"path": path.name, "url": f"https://example.invalid/{path.name}",
+                          "size": path.stat().st_size, "sha256": common.digest_file(path)})
+        manifest = root / (role + "-source.json")
+        common.write_json(manifest, {
+            "schema_version": "1.0",
+            "source": {"provider": "test", "repo_id": course.CFG[role],
+                       "requested_revision": "main", "revision": revision},
+            "files": files,
+        })
+        return manifest
+
     def test_training_environment_can_use_a_validated_alternative(self):
         with patch.dict(course.os.environ, {}, clear=True):
             self.assertEqual(Path(course.training_env(Path('/data'))), Path(sys.prefix))
@@ -136,6 +154,96 @@ class ArtifactTests(unittest.TestCase):
             course.verify_inventory(model, files)
             (model / "model.safetensors").write_bytes(b"changed")
             with self.assertRaises(RuntimeError): course.verify_inventory(model, files)
+
+    def test_registers_verified_external_models_without_downloading(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            teacher = self.make_external_model(root, "teacher", "a" * 40)
+            student = self.make_external_model(root, "student", "b" * 40)
+            course.register_models(root, argparse.Namespace(
+                teacher_source_manifest=str(teacher), student_source_manifest=str(student)))
+            for role, revision in (("teacher", "a" * 40), ("student", "b" * 40)):
+                registered = course.model_ready(root, role)
+                self.assertEqual(registered["resolved_revision"], revision)
+                self.assertTrue(registered["revision_is_immutable"])
+                self.assertEqual(registered["registration"], "external-verified-manifest")
+
+    def test_external_registration_is_all_or_nothing_on_hash_failure(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            teacher = self.make_external_model(root, "teacher", "a" * 40)
+            student = self.make_external_model(root, "student", "b" * 40)
+            data = common.read_json(student)
+            data["files"][0]["sha256"] = "0" * 64
+            student.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "differs from external manifest"):
+                course.register_models(root, argparse.Namespace(
+                    teacher_source_manifest=str(teacher), student_source_manifest=str(student)))
+            self.assertFalse((root / "models/teacher-manifest.json").exists())
+            self.assertFalse((root / "models/student-manifest.json").exists())
+
+    def test_missing_registration_explains_local_recovery(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self.make_external_model(root, "teacher", "a" * 40)
+            with self.assertRaisesRegex(RuntimeError, "registration is missing.*register-models"):
+                course.model_ready(root, "teacher")
+
+    def test_register_student_while_teacher_pending_and_keep_existing_registration(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            student = self.make_external_model(root, "student", "b" * 40)
+            args = argparse.Namespace(teacher_source_manifest=None, student_source_manifest=str(student))
+            course.register_models(root, args)
+            course.model_ready(root, "student")
+            self.assertFalse((root / "models/teacher-manifest.json").exists())
+            before = (root / "models/student-manifest.json").read_bytes()
+            with self.assertRaisesRegex(RuntimeError, "already exists"):
+                course.register_models(root, args)
+            self.assertEqual(before, (root / "models/student-manifest.json").read_bytes())
+
+    def test_registration_rejects_mutable_revision_and_wrong_role(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            source = self.make_external_model(root, "student", "master")
+            with self.assertRaisesRegex(RuntimeError, "immutable repository commit"):
+                course.build_external_registration(root, "student", source)
+            data = common.read_json(source)
+            data["source"]["revision"] = "b" * 40
+            source.write_text(json.dumps(data), encoding="utf-8")
+            course.register_models(root, argparse.Namespace(teacher_source_manifest=None, student_source_manifest=str(source)))
+            manifest = root / "models/student-manifest.json"
+            data = common.read_json(manifest)
+            data["model_id"] = "wrong/model"
+            manifest.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "does not match"):
+                course.model_ready(root, "student")
+
+    def test_bad_index_and_noncanonical_paths_fail_cleanly(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            source = self.make_external_model(root, "teacher", "a" * 40)
+            data = common.read_json(source)
+            for path in ("./config.json", "a//b", "C:/escape", "line\nbreak"):
+                changed = dict(data, files=[dict(data["files"][0], path=path)])
+                source.write_text(json.dumps(changed), encoding="utf-8")
+                with self.assertRaisesRegex(RuntimeError, "Unsafe external manifest path"):
+                    course.external_model_manifest(source, "teacher")
+            folder = root / "models/teacher"
+            common.write_json(folder / "model.safetensors.index.json", {"weight_map": {"weight": []}})
+            with self.assertRaisesRegex(RuntimeError, "unregistered shard"):
+                course.verify_model_semantics(folder, course.inventory(folder))
+
+    def test_external_manifest_rejects_unsafe_path(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "source.json"
+            common.write_json(path, {
+                "schema_version": "1.0",
+                "source": {"provider": "test", "repo_id": course.CFG["teacher"], "revision": "a" * 40},
+                "files": [{"path": "../escape", "size": 1, "sha256": "0" * 64}],
+            })
+            with self.assertRaisesRegex(RuntimeError, "Unsafe external manifest path"):
+                course.external_model_manifest(path, "teacher")
 
     def test_report_uses_actual_denominator_and_marks_incomplete(self):
         with tempfile.TemporaryDirectory() as d:

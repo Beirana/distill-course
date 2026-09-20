@@ -3,7 +3,7 @@
   "purpose": "student experiment directory integrity",
   "student": "Qwen/Qwen2.5-0.5B-Instruct",
   "files": {
-    "README.md": "fcc53810de64a5de8d60700d001553a7b729e7745838eda28383ee0db72fb4a1",
+    "README.md": "a36383f4ac7e50ae226e6fe98294f0e3548bf881f5f78e319c0f576f6944eefa",
     "chat.py": "0157f04d1ac8b9a3cf748eea334655dc1c82852f8fe83a567339cfe1da4dd8e8",
     "configs/course.json": "61ffa2e96c00a3088b8c999564c87c91222ae6331d9072429f52282e5ab86d1c",
     "configs/requirements-gen.txt": "573d57d272d01fdbfc5684a0860bfaa009912997b2063a424999e3050f364019",
@@ -14,7 +14,7 @@
     "docs/结构图/assembly_0.5b.png": "d31497be913bf2e7ff81497474017f468cc2efed6de1123e5729f7299974c624",
     "docs/结构图/assembly_7b.png": "cfb2c34a9ccac9a1b718af5943e497b60974613f12923c9625953146b6735743",
     "docs/结构图/comparison.png": "a5a5562e7decea0ffe3ee801e0fc8ccf36583cd2f6c532bcd7481fa5ff1a38df",
-    "docs/跟课手册.md": "21480965907142db1efec546a7a9b45ceb1672fac88aa2f5861831f202128967",
+    "docs/跟课手册.md": "992989e75d10e4eb838286f1a769e5cb304f5073efa17b5ece988a11a205cf1f",
     "materials/prepared/candidates.jsonl": "7965035017e2061f888885ea6c72fbeb20b1c5073217af6f711dda3fba485b29",
     "materials/prepared/dev.jsonl": "b0228b5d58f4d498bb3eb9bcd9ff72c7f8d58b082c676249300c61eff50a84a9",
     "materials/prepared/manifest.json": "0bd0c58c46c50ddea29867aa4f0052f0c9a9464f4dc2800225d5fe2dbafc1bb7",
@@ -24,14 +24,16 @@
     "materials/teacher500/generation_audit.jsonl": "a590e64220c45fc2c331b26af3c3aacd8b03642ac06cad4a5a4ba02932c65078",
     "materials/teacher500/manifest.json": "4fed48d3ddf953b9a529f8fb75f555f609d5379b38ecfe19ffba0f0860382c60",
     "materials/teacher500/train.json": "4e082bb52cfd655cfa7c777a5f5e88164692836d9cb3751970bde667d486f5fe",
-    "scripts/check_host.sh": "63f360077797378c591fdac488cc2e56e733eb6e43866dc6821c9943cf33cb7e",
+    "scripts/check_host.sh": "81a2b756aef4daefda446deaa523c5e35752c55dc012e75228a7a59fbba35525",
     "scripts/common.py": "3570edfe7b6669b198d6c84bb223454e6e711937b2c376fca08cfa24ae474521",
-    "scripts/course.py": "54dcfef2f9fe43bf7a4ae63a4032afe64935023560dea5f9f43883b2f12e9f73",
+    "scripts/course.py": "83f48c927725e77e27fdbf4a21774a2c98ba9363ff043a714de6d11db0bab643",
     "scripts/hello.py": "a0402d1cd448b0df8d91154d2514bdf02b1a7000b3e0197e0718dfdb9463cdf6",
     "scripts/run_stage.py": "658deb07db050d37fa298630b270b45e0a6ceca156b82a7704bd23277a51b96a",
     "scripts/setup_env.py": "87e9f0ef43cc94a461b0030840f580ce910ac5e7241d95014a4ec2c0d9315545",
     "scripts/use_materials.py": "2f7681d3725447ad192dd0068e26a940302728d1e95e752f7fa5aa7a75731bbb",
     "scripts/verify_bundle.py": "c3743025ccd5bbd15f59f065d8a84cddeca41e90d19b3c92ac0ecaabc10cf227",
-    "tests/test_course.py": "0cc027daedf840e8b8812719b8af83ff55696965743ce63dda9311641aab16ee"
+    "tests/test_course.py": "e3bf717ff227e5c3ca861a23e08811d6d8cef126b401c16c22bd184ef264869f",
+    "docs/单样本与便捷命令.md": "f52abbc83b3fbce0ce0a53f1aa01c3b78b6aa67414e5e3785924dcac67f225b2",
+    "tests/test_check_host.py": "45cf3effe96d6497b58ecf1dc20d3f6f08b1bf3c92dfcbf28666e64ba8d4f254"
   }
 }

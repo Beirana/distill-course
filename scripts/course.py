@@ -12,7 +12,7 @@ import threading
 import time
 import traceback
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from common import (digest_file, parse_answer, read_json, read_jsonl, select_data,
                     training_configs, write_json, write_jsonl)
@@ -55,7 +55,84 @@ def inventory(folder):
 def verify_inventory(folder, files):
     for name, expected in files.items():
         path = folder / name
-        need(path.is_file() and digest_file(path) == expected["sha256"], f"Model file changed/missing: {path}")
+        need(path.is_file(), f"Model file missing: {path}")
+        need(path.stat().st_size == expected["bytes"], f"Model file size changed: {path}")
+        need(digest_file(path) == expected["sha256"], f"Model file hash changed: {path}")
+
+
+def external_model_manifest(path, role):
+    """Normalize a provider-neutral source manifest without trusting its URLs."""
+    manifest_path = Path(path).expanduser().resolve()
+    manifest = read_json(manifest_path)
+    need(manifest.get("schema_version") == "1.0", "External manifest schema_version must be 1.0")
+    source = manifest.get("source")
+    need(isinstance(source, dict), "External manifest source must be an object")
+    need(source.get("repo_id") == CFG[role],
+         f"External manifest repo_id does not match configured {role}: {CFG[role]}")
+    revision = str(source.get("revision", "")).strip()
+    need(bool(re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", revision)),
+         "External manifest source.revision must be an immutable repository commit, not a branch or file-level revision")
+    rows = manifest.get("files")
+    need(isinstance(rows, list) and rows, "External manifest files must be a non-empty array")
+    files = {}
+    for index, row in enumerate(rows):
+        need(isinstance(row, dict), f"External manifest files[{index}] must be an object")
+        name = row.get("path")
+        need(isinstance(name, str) and name and "\\" not in name,
+             f"Unsafe external manifest path: {name!r}")
+        relative = PurePosixPath(name)
+        need(not relative.is_absolute() and all(part not in ("", ".", "..") for part in name.split("/"))
+             and ":" not in name and not any(ord(char) < 32 for char in name),
+             f"Unsafe external manifest path: {name!r}")
+        normalized = relative.as_posix()
+        need(normalized not in files, f"Duplicate external manifest path: {normalized}")
+        size, sha = row.get("size"), row.get("sha256")
+        need(isinstance(size, int) and not isinstance(size, bool) and size >= 0,
+             f"Invalid external manifest size: {normalized}")
+        need(isinstance(sha, str) and bool(re.fullmatch(r"[0-9a-fA-F]{64}", sha)),
+             f"A trusted SHA256 is required for every model file: {normalized}")
+        files[normalized] = {"bytes": size, "sha256": sha.lower()}
+    need("config.json" in files, "External manifest is missing config.json")
+    need(any(name.endswith(".safetensors") for name in files), "External manifest is missing safetensors weights")
+    return manifest_path, manifest, files
+
+
+def verify_model_semantics(folder, files):
+    need(isinstance(read_json(folder / "config.json"), dict), "Model config must be an object")
+    for name in ("tokenizer.json", "tokenizer_config.json", "generation_config.json"):
+        if name in files:
+            need(isinstance(read_json(folder / name), dict), f"Invalid JSON model metadata: {name}")
+    indexes = [name for name in files if name.endswith(".safetensors.index.json")]
+    for name in indexes:
+        index = read_json(folder / name)
+        weight_map = index.get("weight_map")
+        need(isinstance(weight_map, dict) and weight_map, f"Invalid safetensors weight_map: {folder / name}")
+        for shard in weight_map.values():
+            need(isinstance(shard, str) and shard in files,
+                 f"Safetensors index references an unregistered shard: {shard}")
+
+
+def build_external_registration(root, role, source_manifest):
+    manifest_path, source, expected = external_model_manifest(source_manifest, role)
+    folder = root / "models" / role
+    actual = inventory(folder)
+    need(set(actual) == set(expected),
+         f"Local {role} file set differs from external manifest")
+    for name, item in expected.items():
+        need(actual[name] == item, f"Local {role} file differs from external manifest: {name}")
+    verify_model_semantics(folder, actual)
+    revision = str(source["source"]["revision"])
+    return {
+        "time": now(),
+        "source": source["source"].get("provider", "external"),
+        "model_id": CFG[role],
+        "requested_revision": source["source"].get("requested_revision", revision),
+        "resolved_revision": revision,
+        "revision_is_immutable": bool(re.fullmatch(r"[0-9a-fA-F]{40,64}", revision)),
+        "registration": "external-verified-manifest",
+        "source_manifest_sha256": digest_file(manifest_path),
+        "files": actual,
+    }
 
 
 def data_ready(root):
@@ -68,9 +145,66 @@ def data_ready(root):
 
 
 def model_ready(root, role):
-    manifest = read_json(root / "models" / (role + "-manifest.json"))
-    verify_inventory(root / "models" / role, manifest["files"])
+    folder = root / "models" / role
+    manifest_path = root / "models" / (role + "-manifest.json")
+    if not manifest_path.is_file():
+        if folder.is_dir() and any(folder.iterdir()):
+            raise RuntimeError(
+                f"{role} model files exist but course registration is missing: {manifest_path}. "
+                "Use register-models with trusted source manifests; this will verify locally without downloading."
+            )
+        raise RuntimeError(
+            f"{role} model directory or registration is missing. Use download-models, or provide verified files and run register-models."
+        )
+    manifest = read_json(manifest_path)
+    need(manifest.get("model_id") == CFG[role], f"Registered model does not match configured {role}")
+    verify_inventory(folder, manifest["files"])
     return manifest
+
+
+def register_models(root, args):
+    targets = {role: path for role, path in {
+        "teacher": args.teacher_source_manifest,
+        "student": args.student_source_manifest,
+    }.items() if path}
+    need(bool(targets), "Provide at least one role source manifest")
+    registrations = {}
+    for role, source_manifest in targets.items():
+        destination = root / "models" / (role + "-manifest.json")
+        need(not destination.exists(),
+             f"Course registration already exists for {role}; verify it instead of overwriting: {destination}")
+        registrations[role] = build_external_registration(root, role, source_manifest)
+    for role, manifest in registrations.items():
+        write_json(root / "models" / (role + "-manifest.json"), manifest)
+        print(f"Registered verified external model: {role}")
+    print("Selected roles verified locally and registered; no network download was performed. Other roles may still be pending.")
+
+
+def verify_models(root, args):
+    for role in ("teacher", "student"):
+        manifest = model_ready(root, role)
+        print(f"Verified registered model: {role} ({len(manifest['files'])} files)")
+
+
+def model_status(root, args):
+    status = {}
+    for role in ("teacher", "student"):
+        folder = root / "models" / role
+        manifest_path = root / "models" / (role + "-manifest.json")
+        if not folder.is_dir() or not any(folder.iterdir()):
+            status[role] = {"status": "missing", "folder": str(folder)}
+        elif not manifest_path.is_file():
+            status[role] = {"status": "files-present-registration-missing", "folder": str(folder)}
+        else:
+            try:
+                manifest = model_ready(root, role)
+                status[role] = {"status": "ready", "model_id": manifest.get("model_id"),
+                                "file_count": len(manifest["files"]), "manifest": str(manifest_path)}
+            except Exception as exc:
+                status[role] = {"status": "invalid", "error": str(exc), "manifest": str(manifest_path)}
+    print(json.dumps(status, ensure_ascii=False, indent=2))
+    need(all(item["status"] == "ready" for item in status.values()),
+         "One or more model roles are not ready; inspect the status above")
 
 
 def preflight(root, args):
@@ -500,10 +634,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=os.environ.get("COURSE_DATA_ROOT", "/root/distill-work"))
     sub = parser.add_subparsers(dest="command", required=True)
-    for command in ("preflight", "download-models", "prepare-data", "generate", "make-config", "train", "export", "fork-run", "freeze", "eval", "report", "note"):
+    for command in ("preflight", "download-models", "register-models", "verify-models", "model-status",
+                    "prepare-data", "generate", "make-config", "train", "export", "fork-run",
+                    "freeze", "eval", "report", "note"):
         p = sub.add_parser(command)
-        if command not in ("preflight", "download-models", "prepare-data"):
+        if command not in ("preflight", "download-models", "register-models", "verify-models", "model-status", "prepare-data"):
             p.add_argument("--run", required=True)
+        if command == "register-models":
+            p.add_argument("--teacher-source-manifest")
+            p.add_argument("--student-source-manifest")
         if command == "prepare-data": p.add_argument("--local-data")
         if command == "generate": p.add_argument("--mode", choices=["smoke", "pilot500"], required=True)
         if command == "fork-run": p.add_argument("--source-run", required=True)
@@ -522,7 +661,9 @@ def main():
     root.mkdir(parents=True, exist_ok=True)
     event = {"start": now(), "command": vars(args), "status": "running"}
     started = time.perf_counter()
-    functions = {"preflight": preflight, "download-models": download_models, "prepare-data": prepare_data,
+    functions = {"preflight": preflight, "download-models": download_models,
+                 "register-models": register_models, "verify-models": verify_models, "model-status": model_status,
+                 "prepare-data": prepare_data,
                  "generate": generate, "make-config": make_config, "train": train_or_export,
                  "export": train_or_export, "fork-run": fork_run, "freeze": freeze, "eval": evaluate,
                  "report": report, "note": note}
